@@ -5,9 +5,11 @@ import { useState } from 'react'
 import axios from 'axios'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
+import sha256 from 'crypto-js/sha256';
+import CryptoJS from 'crypto-js'
 
 export default function Home() {
-  const serverUrl = process.env.SERVER_URL;
+  const serverUrl = "http://127.0.0.1:3333";
   const route = useRouter();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -18,8 +20,19 @@ export default function Home() {
     const credentials = { email, password, rememberMe };
     try {
       const response = await axios.post(serverUrl + "/login", credentials);
+      console.log(response, credentials, serverUrl);
       if (response.status === 200) {
-        route.push("/");
+        const acesskey = CryptoJS.AES.encrypt(JSON.stringify(response), process?.env?.SECRET_KEY || "123");
+        if (document.cookie.includes("_ACK=")) {
+          const existingCookie = document.cookie.split("_ACK=")[1].split(";")[0];
+          document.cookie.replace(existingCookie, `${acesskey}`);
+        } else {
+          document.cookie += `_ACK=${acesskey};`
+        }
+        const bytes = CryptoJS.AES.decrypt(acesskey, process?.env?.SECRET_KEY || "123");
+        const original = bytes.toString(CryptoJS.enc.Utf8);
+        console.log(acesskey, bytes, original)
+        // route.push("/");
       } else {
         throw new Error(response.data.errors[0].message);
       }
@@ -65,9 +78,9 @@ export default function Home() {
                 </a>
               </div>
               <button className='text-white font-medium rounded-lg text-base px-5 py-3 w-full sm:w-auto text-center mb-6 bg-blue-700' type="submit">Sign in to account</button>
-              <button className='text-white font-medium rounded-lg text-base px-5 py-3 w-full sm:w-auto text-center mb-6 bg-red-700' onClick={() => {const response = axios.get(serverUrl + "/google/redirect"); console.log({response})}}>
+              {/* <button className='text-white font-medium rounded-lg text-base px-5 py-3 w-full sm:w-auto text-center mb-6 bg-red-700' onClick={() => {const response = axios.get(serverUrl + "/google/redirect"); console.log({response})}}>
                 Sign with google
-              </button>
+              </button> */}
               <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Not registered?
                 <Link className="ml-1 text-blue-700 hover:underline dark:text-blue-500" href="/register">
                   Create your account.
